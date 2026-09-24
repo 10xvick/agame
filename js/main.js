@@ -517,6 +517,7 @@ function cardEl(g) {
       ${g.isNew ? '<span class="card-badge badge-new">New</span>' : top ? '<span class="card-badge badge-top">Top</span>' : ""}
       ${best > 0 ? `<span class="card-hs">★ ${fmtScore(best)}</span>` : ""}
       <canvas></canvas>
+      <span class="card-emoji" aria-hidden="true">${g.emoji || "✦"}</span>
       <div class="play-glass"><div class="pg">▶</div></div>
     </div>
     <div class="card-body">

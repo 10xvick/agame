@@ -1693,3 +1693,35 @@ body::after {
   .game-grid .card-meta .cat { display: inline-block; max-width: 100%; font-size: 7px; }
   .game-grid .card-meta .plays { display: none; }
 }
+
+/* Soft item-card treatment: the canvas stays alive underneath a friendly collectible icon. */
+.game-grid .card-cover {
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+.game-grid .card-cover canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  filter: saturate(0.72) sepia(0.18) brightness(1.12);
+  mix-blend-mode: multiply;
+  transition: opacity 0.2s, transform 0.3s;
+}
+.game-grid .card:hover .card-cover canvas { opacity: 0.28; }
+.card-emoji {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 253, 239, 0.82);
+  color: #9c692a;
+  font-size: clamp(28px, 5vw, 48px);
+  line-height: 1;
+  filter: drop-shadow(0 4px 2px rgba(126, 75, 18, 0.14));
+  transition: transform 0.2s;
+}
+.game-grid .card:hover .card-emoji { transform: translateY(-2px) scale(1.05) rotate(-3deg); }
