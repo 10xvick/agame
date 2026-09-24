@@ -31,19 +31,27 @@ let currentQuery = "";
    ============================================================ */
 function renderHeader() {
   const h = document.createElement("header");
-  h.className = "site-header";
+  h.className = "site-header game-hud";
   h.innerHTML = `
-    <a class="logo" href="#/">
+    <div class="hud-level" aria-label="Player level 23">
+      <span class="level-medal">23</span>
+      <div class="level-copy">
+        <div class="level-line"><strong>Cozy level</strong><span>3,838 EXP</span></div>
+        <div class="exp-track"><span></span></div>
+      </div>
+    </div>
+    <a class="logo" href="#/" aria-label="Agame home">
       <span class="logo-mark">A+</span>
       <span>agame<span class="plus">⁺</span></span>
     </a>
     <div class="header-search">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="search" type="search" placeholder="Search games… (try “snake”)" autocomplete="off" />
+      <input id="search" type="search" placeholder="Find a game…" autocomplete="off" aria-label="Find a game" />
     </div>
     <div class="header-right">
-      <span class="header-note">made for tiny breaks <span>✦</span></span>
+      <div class="coin-counter" aria-label="8,017 coins"><span class="coin-icon">●</span><strong>8,017</strong><small>＋</small></div>
       <button class="icon-btn" id="sound" title="Toggle sound (M)" aria-label="Toggle sound">${sfx.muted ? "🔇" : "🔊"}</button>
+      <button class="icon-btn settings-btn" id="settings" title="Cozy settings" aria-label="Cozy settings">⚙</button>
     </div>`;
   app.appendChild(h);
 
@@ -51,6 +59,8 @@ function renderHeader() {
     const m = sfx.toggle();
     h.querySelector("#sound").textContent = m ? "🔇" : "🔊";
   });
+  h.querySelector("#settings").addEventListener("click", () => toast("Everything is saved right here on your device ✦"));
+
   const input = h.querySelector("#search");
   input.value = currentQuery;
   input.addEventListener("input", () => {
@@ -65,7 +75,6 @@ function renderHeader() {
     }
   });
 }
-
 function findMatch(q) {
   if (!q) return null;
   return (
@@ -358,127 +367,126 @@ function rrect(g, x, y, w, h, r) {
    Home page
    ============================================================ */
 function renderHome() {
-  document.title = "AGAME+ — A cozy little browser arcade";
+  document.title = "AGAME+ — Cozy game shelf";
   if (shell) { shell.destroy(); shell = null; }
   if (heroAnim) { heroAnim(); heroAnim = null; }
   app.innerHTML = "";
   renderHeader();
 
   const page = document.createElement("main");
-  page.className = "page";
-
-  /* hero */
-  const featured = byId.get("memory") || byId.get("tetris");
+  page.className = "page collection-page";
   const totalPlays = GAMES.reduce((a, g) => a + g.plays, 0);
-  const hero = document.createElement("section");
-  hero.className = "hero";
-  hero.innerHTML = `
-    <div>
-      <span class="hero-kicker"><span class="dot"></span> ${GAMES.length} tiny worlds · open late</span>
-      <h1>Take a little <span class="grad">play break</span>.<br>Your cozy corner of the web.</h1>
-      <p class="sub">Pick a tiny world, settle in, and play for a minute — or an hour. Colorful canvas games, gentle sounds, and high scores saved right on your device.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#/play/${featured.id}">▶ Play ${featured.title}</a>
-        <a class="btn btn-ghost" href="#browse">Explore the shelf</a>
-      </div>
-      <div class="hero-stats">
-        <div class="hero-stat"><div class="n">${GAMES.length}</div><div class="l">Tiny worlds</div></div>
-        <div class="hero-stat"><div class="n">${fmtPlays(totalPlays)}</div><div class="l">Happy plays</div></div>
-        <div class="hero-stat"><div class="n">0</div><div class="l">Downloads</div></div>
-        <div class="hero-stat"><div class="n">60fps</div><div class="l">Canvas magic</div></div>
+  const cats = ["all", "arcade", "action", "puzzle", "reflex", "strategy"];
+  const catIndex = Math.max(0, cats.indexOf(currentCat));
+
+  const screen = document.createElement("section");
+  screen.className = "collection-screen";
+  screen.innerHTML = `
+    <div class="collection-topline">
+      <button class="back-button" id="home-back" aria-label="Back to home">‹ <span>Back</span></button>
+      <div class="screen-name"><span class="screen-kicker">YOUR LITTLE ARCADE</span><h1>Game shelf</h1></div>
+      <button class="help-button" id="shelf-help" aria-label="About the game shelf">?</button>
+    </div>
+    <div class="collection-progress">
+      <div class="progress-copy"><span>Fresh games</span><strong>${GAMES.length}<small> / ${GAMES.length}</small></strong></div>
+      <div class="progress-track"><span style="width:56%"></span></div>
+      <div class="progress-foot"><span>Keep exploring</span><b>56%</b></div>
+    </div>
+    <div class="shelf-intro">
+      <div><span class="sticker">✦ PICK A MOOD</span><h2>What sounds fun?</h2><p>${fmtPlays(totalPlays)} happy plays and counting.</p></div>
+      <div class="shelf-mascot" aria-hidden="true"><span>✦</span><i></i></div>
+    </div>`;
+  page.appendChild(screen);
+
+  screen.querySelector("#home-back").addEventListener("click", () => { currentQuery = ""; currentCat = "all"; renderHome(); });
+  screen.querySelector("#shelf-help").addEventListener("click", () => toast("Pick a card, press play, and make yourself comfy ✦"));
+
+  const tools = document.createElement("div");
+  tools.className = "shelf-tools";
+  tools.innerHTML = `
+    <div class="mobile-search shelf-search">
+      <div class="header-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search-m" type="search" placeholder="Find a game…" autocomplete="off" aria-label="Find a game" />
       </div>
     </div>
-    <div class="hero-art" aria-label="A colorful animated arcade garden. Tap or click to make a little sparkle.">
-      <canvas id="hero-canvas"></canvas>
-      <span class="badge">✦ COZY MODE · tap the scene</span>
-      <span class="hero-art-note"><span class="note-dot"></span> A soft place to land</span>
-    </div>`;
-  page.appendChild(hero);
-  heroAnim = heroArt(hero.querySelector("#hero-canvas"));
-
-  /* mobile search (header search is hidden on small screens) */
-  const mSearch = document.createElement("div");
-  mSearch.className = "mobile-search";
-  mSearch.innerHTML = `
-    <div class="header-search" style="max-width:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="search-m" type="search" placeholder="Search games…" autocomplete="off" />
-    </div>`;
-  page.appendChild(mSearch);
-  const mi = mSearch.querySelector("#search-m");
-  mi.value = currentQuery;
-  mi.addEventListener("input", () => {
-    currentQuery = mi.value.trim().toLowerCase();
-    if (!location.hash.startsWith("#/play/")) renderHome();
-  });
-  mi.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const g = findMatch(currentQuery);
-      if (g) location.hash = "#/play/" + g.id;
-      else toast("No game found for “" + mi.value + "”");
-    }
-  });
-
-  /* recently played */
-  const rec = recent.all().map((id) => byId.get(id)).filter(Boolean);
-  if (rec.length && !currentQuery) {
-    const sec = document.createElement("section");
-    sec.className = "section";
-    sec.innerHTML = `<div class="section-head"><h2>Welcome back</h2><span class="line"></span><span class="section-hint">your recent little worlds</span></div>`;
-    sec.appendChild(gridEl(rec));
-    page.appendChild(sec);
-  }
-
-  /* browse */
-  const browse = document.createElement("section");
-  browse.className = "section";
-  browse.id = "browse";
-  browse.style.scrollMarginTop = "110px";
-
-  const cats = ["all", "arcade", "action", "puzzle", "reflex", "strategy"];
-  const pills = document.createElement("div");
-  pills.className = "cats";
-  pills.innerHTML = cats
-    .map((c) => {
-      const n = c === "all" ? GAMES.length : GAMES.filter((g) => g.category === c).length;
-      const label = c === "all" ? "✦ All" : `${CAT_EMOJI[c]} ${CAT_LABELS[c]}`;
-      return `<button class="cat-pill ${c === currentCat ? "active" : ""}" data-cat="${c}">${label} <span class="cnt">${n}</span></button>`;
-    })
-    .join("");
-  browse.appendChild(pills);
-  pills.addEventListener("click", (e) => {
-    const b = e.target.closest(".cat-pill");
+    <div class="mood-tabs" aria-label="Game categories"></div>`;
+  page.appendChild(tools);
+  const tabs = tools.querySelector(".mood-tabs");
+  tabs.innerHTML = cats.map((c) => {
+    const count = c === "all" ? GAMES.length : GAMES.filter((g) => g.category === c).length;
+    const label = c === "all" ? "✦ All" : `${CAT_EMOJI[c]} ${CAT_LABELS[c]}`;
+    return `<button class="mood-tab ${c === currentCat ? "active" : ""}" data-cat="${c}">${label}<small>${count}</small></button>`;
+  }).join("");
+  tabs.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cat]");
     if (!b) return;
     currentCat = b.dataset.cat;
     sfx.click();
     renderHome();
   });
+  const mobileInput = tools.querySelector("#search-m");
+  mobileInput.value = currentQuery;
+  mobileInput.addEventListener("input", () => {
+    currentQuery = mobileInput.value.trim().toLowerCase();
+    renderHome();
+  });
+  mobileInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const g = findMatch(currentQuery);
+      if (g) location.hash = "#/play/" + g.id;
+      else toast("No game found for “" + mobileInput.value + "”");
+    }
+  });
 
-  const head = document.createElement("div");
-  head.className = "section-head";
+  const browse = document.createElement("section");
+  browse.className = "section shelf-section";
+  browse.id = "browse";
+  browse.style.scrollMarginTop = "96px";
   const list = filteredGames();
-  head.innerHTML = `
-    <h2>${currentQuery ? `Results for “${currentQuery}”` : currentCat === "all" ? "All games" : CAT_LABELS[currentCat]}</h2>
-    <span class="line"></span>
-    <span class="meta">${list.length} game${list.length === 1 ? "" : "s"}</span>`;
-  browse.appendChild(head);
-
+  browse.innerHTML = `
+    <div class="shelf-section-head"><div><span class="tiny-label">THE PLAYROOM</span><h2>${currentQuery ? `Results for “${currentQuery}”` : currentCat === "all" ? "Little games" : CAT_LABELS[currentCat]}</h2></div><span class="game-count">${list.length} ready to play</span></div>
+    <div class="shelf-pager"><button class="pager-arrow" data-dir="-1" aria-label="Previous mood">‹</button><div class="pager-dots">${cats.map((c, i) => `<i class="${i === catIndex ? "active" : ""}"></i>`).join("")}</div><button class="pager-arrow" data-dir="1" aria-label="Next mood">›</button></div>`;
   const grid = gridEl(list);
+  grid.classList.add("game-grid");
   browse.appendChild(grid);
   page.appendChild(browse);
+  browse.querySelectorAll(".pager-arrow").forEach((button) => button.addEventListener("click", () => {
+    const next = (catIndex + Number(button.dataset.dir) + cats.length) % cats.length;
+    currentCat = cats[next];
+    sfx.click();
+    renderHome();
+  }));
 
   app.appendChild(page);
-
-  /* footer */
   app.appendChild(renderFooter());
 
+  const nav = document.createElement("nav");
+  nav.className = "mobile-nav";
+  nav.setAttribute("aria-label", "Main navigation");
+  nav.innerHTML = `
+    <a class="active" href="#/"><span class="nav-glyph">⌂</span><span>Home</span></a>
+    <a href="#browse"><span class="nav-glyph">✦</span><span>Play</span></a>
+    <button data-cat="arcade"><span class="nav-glyph">◈</span><span>Arcade</span></button>
+    <button data-cat="puzzle"><span class="nav-glyph">◇</span><span>Puzzles</span></button>
+    <button id="nav-sound"><span class="nav-glyph">${sfx.muted ? "🔇" : "♫"}</span><span>Sound</span></button>`;
+  app.appendChild(nav);
+  nav.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => {
+    currentCat = button.dataset.cat;
+    sfx.click();
+    renderHome();
+    requestAnimationFrame(() => document.getElementById("browse")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }));
+  nav.querySelector("#nav-sound").addEventListener("click", () => {
+    const muted = sfx.toggle();
+    nav.querySelector(".nav-glyph").textContent = muted ? "🔇" : "♫";
+    const headerSound = document.querySelector("#sound");
+    if (headerSound) headerSound.textContent = muted ? "🔇" : "🔊";
+  });
+
   observeReveals();
-
-  if (location.hash === "#browse") {
-    requestAnimationFrame(() => document.getElementById("browse")?.scrollIntoView());
-  }
+  if (location.hash === "#browse") requestAnimationFrame(() => document.getElementById("browse")?.scrollIntoView());
 }
-
 function filteredGames() {
   let list = GAMES.slice();
   if (currentCat !== "all") list = list.filter((g) => g.category === currentCat);
