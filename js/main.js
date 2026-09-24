@@ -42,6 +42,7 @@ function renderHeader() {
       <input id="search" type="search" placeholder="Search games… (try “snake”)" autocomplete="off" />
     </div>
     <div class="header-right">
+      <span class="header-note">made for tiny breaks <span>✦</span></span>
       <button class="icon-btn" id="sound" title="Toggle sound (M)" aria-label="Toggle sound">${sfx.muted ? "🔇" : "🔊"}</button>
     </div>`;
   app.appendChild(h);
@@ -79,70 +80,270 @@ function findMatch(q) {
    ============================================================ */
 function heroArt(canvas) {
   const g = canvas.getContext("2d");
-  let W = 0, H = 0, dpr = 1;
+  let W = 0, H = 0, dpr = 1, t = 0, raf = 0;
+  let ox = 0, oy = 0, unit = 1;
+  const pointer = { x: 0.72, y: 0.34, active: false };
+  const sparks = [];
+  const flecks = Array.from({ length: 54 }, () => ({
+    x: Math.random() * 640,
+    y: Math.random() * 420,
+    r: 0.5 + Math.random() * 1.8,
+    a: 0.12 + Math.random() * 0.22,
+  }));
+  const balloons = [
+    { x: 92, y: 104, s: 0.72, hue: "#f6a7b8", phase: 0.3 },
+    { x: 548, y: 102, s: 0.58, hue: "#a99af6", phase: 1.9 },
+    { x: 585, y: 188, s: 0.38, hue: "#f6c26b", phase: 3.1 },
+  ];
+  const clouds = [
+    { x: 92, y: 78, s: 0.88, speed: 0.8 },
+    { x: 470, y: 62, s: 0.65, speed: -0.45 },
+  ];
+
   const resize = () => {
     const r = canvas.getBoundingClientRect();
-    dpr = Math.min(2, devicePixelRatio || 1);
-    W = r.width; H = r.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, r.width);
+    H = Math.max(1, r.height);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    unit = Math.min(W / 640, H / 420);
+    ox = (W - 640 * unit) / 2;
+    oy = (H - 420 * unit) / 2;
   };
+
+  const pointFromEvent = (e) => {
+    const r = canvas.getBoundingClientRect();
+    pointer.x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    pointer.y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+    pointer.active = true;
+  };
+  const onMove = (e) => pointFromEvent(e);
+  const onLeave = () => { pointer.active = false; };
+  const onDown = (e) => {
+    pointFromEvent(e);
+    const x = (pointer.x * W - ox) / unit;
+    const y = (pointer.y * H - oy) / unit;
+    for (let i = 0; i < 20; i++) {
+      const a = (Math.PI * 2 * i) / 20 + Math.random() * 0.25;
+      sparks.push({ x, y, vx: Math.cos(a) * (35 + Math.random() * 75), vy: Math.sin(a) * (35 + Math.random() * 75), life: 0.7 + Math.random() * 0.45, max: 1.15, hue: ["#f48fb1", "#8bd8c7", "#f7c96b", "#a99af6"][i % 4] });
+    }
+    sfx.click();
+  };
+
   resize();
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
+  canvas.addEventListener("pointermove", onMove);
+  canvas.addEventListener("pointerleave", onLeave);
+  canvas.addEventListener("pointerdown", onDown);
 
-  const tiles = Array.from({ length: 26 }, () => ({
-    x: Math.random(),
-    y: Math.random(),
-    s: 0.25 + Math.random() * 0.75,
-    sp: 0.02 + Math.random() * 0.06,
-    hue: [262, 190, 330, 150, 45][Math.floor(Math.random() * 5)],
-    ph: Math.random() * 6.28,
-  }));
+  const cloud = (x, y, s) => {
+    g.save();
+    g.fillStyle = "rgba(255,255,255,0.72)";
+    g.beginPath();
+    g.arc(x, y + 7 * s, 19 * s, Math.PI, 0);
+    g.arc(x + 21 * s, y - 2 * s, 26 * s, Math.PI, 0);
+    g.arc(x + 51 * s, y + 7 * s, 18 * s, Math.PI, 0);
+    g.lineTo(x + 69 * s, y + 21 * s);
+    g.lineTo(x - 19 * s, y + 21 * s);
+    g.closePath();
+    g.fill();
+    g.restore();
+  };
 
-  let t = 0;
-  let raf = 0;
-  const frame = () => {
+  const flower = (x, y, color, s = 1) => {
+    g.strokeStyle = "#6fb89d";
+    g.lineWidth = 2 * s;
+    g.beginPath(); g.moveTo(x, y + 2 * s); g.lineTo(x, y + 21 * s); g.stroke();
+    g.fillStyle = color;
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5;
+      g.beginPath(); g.arc(x + Math.cos(a) * 6 * s, y + Math.sin(a) * 6 * s, 4 * s, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = "#f7c96b";
+    g.beginPath(); g.arc(x, y, 3 * s, 0, Math.PI * 2); g.fill();
+  };
+
+  const draw = (now) => {
     t += 0.016;
     g.clearRect(0, 0, W, H);
-    const grad = g.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, "#131a36");
-    grad.addColorStop(1, "#0a0e1f");
-    g.fillStyle = grad;
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, "#fff4dc");
+    sky.addColorStop(0.58, "#e9f7ee");
+    sky.addColorStop(1, "#c9eadd");
+    g.fillStyle = sky;
     g.fillRect(0, 0, W, H);
-    // grid
-    g.strokeStyle = "rgba(148,163,255,0.07)";
-    g.lineWidth = 1;
-    const step = 44;
-    const off = (t * 12) % step;
-    for (let x = -step + off; x < W; x += step) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
-    for (let y = -step + off; y < H; y += step) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-    // tiles
-    for (const tl of tiles) {
-      tl.y -= tl.sp * 0.016;
-      if (tl.y < -0.1) { tl.y = 1.1; tl.x = Math.random(); }
-      const x = tl.x * W + Math.sin(t * 0.7 + tl.ph) * 14;
-      const y = tl.y * H;
-      const size = 18 + tl.s * 30;
-      g.globalAlpha = 0.25 + tl.s * 0.5;
-      g.fillStyle = `hsl(${tl.hue} 70% 55%)`;
-      g.shadowColor = `hsl(${tl.hue} 80% 60%)`;
-      g.shadowBlur = 18;
-      rrect(g, x - size / 2, y - size / 2, size, size, size * 0.28);
-      g.fill();
-      g.shadowBlur = 0;
-      g.fillStyle = "rgba(255,255,255,0.25)";
-      rrect(g, x - size / 2 + 3, y - size / 2 + 3, size - 6, size * 0.16, 3);
-      g.fill();
+
+    g.save();
+    g.translate(ox, oy);
+    g.scale(unit, unit);
+
+    // warm paper-like flecks keep the scene feeling hand painted.
+    for (const f of flecks) {
+      g.globalAlpha = f.a;
+      g.fillStyle = "#fffdf7";
+      g.beginPath(); g.arc(f.x, f.y, f.r, 0, Math.PI * 2); g.fill();
     }
     g.globalAlpha = 1;
-    raf = requestAnimationFrame(frame);
-  };
-  raf = requestAnimationFrame(frame);
-  return () => { cancelAnimationFrame(raf); ro.disconnect(); };
-}
 
+    // sun and drifting clouds
+    g.fillStyle = "rgba(248, 194, 107, 0.22)";
+    g.beginPath(); g.arc(510, 84, 68 + Math.sin(t * 0.5) * 3, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#f8c66f";
+    g.beginPath(); g.arc(510, 84, 34, 0, Math.PI * 2); g.fill();
+    for (const c of clouds) cloud(c.x + ((t * c.speed) % 740) - 50, c.y, c.s);
+    for (const b of balloons) {
+      const bx = b.x + Math.sin(t * 0.55 + b.phase) * 9;
+      const by = b.y + Math.cos(t * 0.7 + b.phase) * 5;
+      g.strokeStyle = "rgba(111, 126, 122, 0.34)";
+      g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(bx, by + 18 * b.s); g.lineTo(bx - 5 * b.s, by + 74 * b.s); g.stroke();
+      g.fillStyle = b.hue;
+      g.beginPath(); g.ellipse(bx, by, 15 * b.s, 20 * b.s, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "rgba(255,255,255,0.35)";
+      g.beginPath(); g.ellipse(bx - 5 * b.s, by - 7 * b.s, 4 * b.s, 7 * b.s, -0.4, 0, Math.PI * 2); g.fill();
+    }
+
+    // distant rolling hills
+    g.fillStyle = "#b9dfc8";
+    g.beginPath();
+    g.moveTo(0, 238); g.bezierCurveTo(90, 176, 162, 214, 244, 190); g.bezierCurveTo(350, 157, 404, 220, 500, 186); g.bezierCurveTo(560, 166, 603, 183, 640, 165); g.lineTo(640, 420); g.lineTo(0, 420); g.closePath(); g.fill();
+    g.fillStyle = "#9fd2b8";
+    g.beginPath();
+    g.moveTo(0, 292); g.bezierCurveTo(104, 244, 180, 280, 264, 254); g.bezierCurveTo(358, 225, 440, 283, 524, 246); g.bezierCurveTo(576, 225, 610, 247, 640, 232); g.lineTo(640, 420); g.lineTo(0, 420); g.closePath(); g.fill();
+
+    // winding path toward the little arcade house
+    g.fillStyle = "#f7e0bd";
+    g.beginPath();
+    g.moveTo(287, 420); g.bezierCurveTo(300, 363, 320, 320, 340, 290); g.bezierCurveTo(354, 269, 374, 262, 391, 253); g.bezierCurveTo(408, 279, 432, 307, 459, 332); g.bezierCurveTo(492, 365, 530, 392, 568, 420); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.36)";
+    g.lineWidth = 3;
+    g.beginPath(); g.moveTo(354, 414); g.bezierCurveTo(356, 355, 370, 310, 391, 267); g.stroke();
+
+    // trees
+    const tree = (x, y, s, color) => {
+      g.fillStyle = "#8b6b62";
+      rr(g, x - 6 * s, y + 42 * s, 12 * s, 44 * s, 5 * s); g.fill();
+      g.fillStyle = color;
+      g.beginPath(); g.arc(x, y + 26 * s, 30 * s, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(x - 23 * s, y + 43 * s, 24 * s, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(x + 22 * s, y + 43 * s, 25 * s, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "rgba(255,255,255,0.18)";
+      g.beginPath(); g.arc(x - 10 * s, y + 16 * s, 7 * s, 0, Math.PI * 2); g.fill();
+    };
+    tree(88, 236, 0.85, "#70bea0");
+    tree(564, 230, 0.72, "#82c7a4");
+
+    // tiny arcade cabin
+    g.shadowColor = "rgba(86, 99, 97, 0.24)";
+    g.shadowBlur = 22;
+    g.shadowOffsetY = 12;
+    g.fillStyle = "#fff9ec";
+    rr(g, 286, 205, 154, 108, 17); g.fill();
+    g.shadowColor = "transparent"; g.shadowBlur = 0; g.shadowOffsetY = 0;
+    g.fillStyle = "#f28fa7";
+    g.beginPath(); g.moveTo(270, 220); g.lineTo(363, 151); g.lineTo(456, 220); g.closePath(); g.fill();
+    g.fillStyle = "#f8b3be";
+    g.beginPath(); g.moveTo(282, 216); g.lineTo(363, 164); g.lineTo(444, 216); g.lineTo(435, 216); g.lineTo(363, 175); g.lineTo(291, 216); g.closePath(); g.fill();
+    // window + door
+    g.fillStyle = "#a5dfd1";
+    rr(g, 311, 233, 48, 39, 10); g.fill();
+    g.strokeStyle = "rgba(66, 124, 117, 0.45)"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(335, 234); g.lineTo(335, 271); g.moveTo(311, 252); g.lineTo(359, 252); g.stroke();
+    g.fillStyle = "#8f7ada";
+    rr(g, 379, 234, 36, 79, 11); g.fill();
+    g.fillStyle = "#f8c66f";
+    g.beginPath(); g.arc(407, 274, 4, 0, Math.PI * 2); g.fill();
+    // sign
+    g.fillStyle = "#fff2c8";
+    rr(g, 320, 187, 86, 25, 10); g.fill();
+    g.fillStyle = "#8f7ada";
+    g.beginPath(); g.arc(342, 199.5, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#f28fa7";
+    g.beginPath(); g.moveTo(361, 194); g.lineTo(371, 199.5); g.lineTo(361, 205); g.closePath(); g.fill();
+    g.fillStyle = "#77cbb7";
+    g.beginPath(); g.arc(386, 199.5, 6, 0, Math.PI * 2); g.fill();
+
+    // little stepping stones and flowers add the cozy details.
+    g.fillStyle = "rgba(122, 169, 149, 0.42)";
+    [[230, 370, 11], [258, 390, 8], [210, 402, 6], [505, 370, 9]].forEach(([x, y, r]) => { g.beginPath(); g.ellipse(x, y, r * 1.4, r, -0.2, 0, Math.PI * 2); g.fill(); });
+    flower(148, 335, "#f28fa7", 0.78); flower(530, 320, "#a99af6", 0.72); flower(186, 389, "#f8c66f", 0.55);
+
+    // friendly floating mascot; it leans toward the pointer without leaving the scene.
+    const px = pointer.active ? (pointer.x * 640 - 320) * 0.035 : 0;
+    const py = pointer.active ? (pointer.y * 420 - 210) * 0.018 : 0;
+    const mx = 500 + px;
+    const my = 272 + py + Math.sin(t * 2.2) * 5;
+    g.save();
+    g.translate(mx, my);
+    g.rotate(Math.sin(t * 1.4) * 0.05);
+    g.shadowColor = "rgba(92, 127, 115, 0.25)"; g.shadowBlur = 16; g.shadowOffsetY = 8;
+    g.fillStyle = "#8bd8c7";
+    g.beginPath(); g.ellipse(0, 0, 39, 45, 0, 0, Math.PI * 2); g.fill();
+    g.shadowColor = "transparent"; g.shadowBlur = 0; g.shadowOffsetY = 0;
+    g.fillStyle = "#d9f5df";
+    g.beginPath(); g.ellipse(-8, 10, 18, 20, -0.15, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#5b9f92"; g.lineWidth = 3; g.lineCap = "round";
+    g.beginPath(); g.moveTo(-11, -39); g.quadraticCurveTo(-16, -62, -4, -68); g.stroke();
+    g.fillStyle = "#f8c66f"; g.beginPath(); g.arc(-4, -69, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#4e6870";
+    g.beginPath(); g.arc(-12, -5, 4, 0, Math.PI * 2); g.arc(13, -5, 4, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#4e6870"; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(0, 4, 10, 0.2, Math.PI - 0.2); g.stroke();
+    g.restore();
+
+    // floating game pieces echo the canvas games on the shelf.
+    const pieces = [
+      { x: 190, y: 115, c: "#a99af6", r: 0.2 },
+      { x: 232, y: 135, c: "#f8c66f", r: -0.3 },
+      { x: 442, y: 126, c: "#8bd8c7", r: 0.35 },
+    ];
+    pieces.forEach((p, i) => {
+      const y = p.y + Math.sin(t * 1.2 + i) * 7;
+      g.save(); g.translate(p.x, y); g.rotate(p.r + Math.sin(t + i) * 0.05);
+      g.shadowColor = p.c; g.shadowBlur = 12; g.fillStyle = p.c;
+      rr(g, -14, -14, 28, 28, 8); g.fill();
+      g.shadowColor = "transparent"; g.shadowBlur = 0;
+      g.fillStyle = "rgba(255,255,255,0.42)"; rr(g, -8, -8, 16, 5, 2); g.fill();
+      g.restore();
+    });
+
+    // soft fireflies
+    for (let i = 0; i < 7; i++) {
+      const fx = 110 + i * 76 + Math.sin(t * (0.6 + i * 0.03) + i) * 10;
+      const fy = 170 + Math.cos(t * 0.8 + i * 1.8) * 18;
+      g.globalAlpha = 0.35 + Math.sin(t * 2 + i) * 0.18;
+      g.fillStyle = i % 2 ? "#f8c66f" : "#f28fa7";
+      g.beginPath(); g.arc(fx, fy, 3.3, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.restore();
+
+    // click sparkles are rendered above the scaled scene, so they stay crisp on retina screens.
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.life -= 0.016;
+      if (p.life <= 0) { sparks.splice(i, 1); continue; }
+      p.x += p.vx * 0.016; p.y += p.vy * 0.016; p.vy += 80 * 0.016;
+      g.globalAlpha = Math.max(0, p.life / p.max);
+      g.fillStyle = p.hue;
+      g.beginPath(); g.arc(ox + p.x * unit, oy + p.y * unit, 2.5 + (1 - p.life) * 2, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 1;
+    raf = requestAnimationFrame(draw);
+  };
+
+  raf = requestAnimationFrame(draw);
+  return () => {
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+    canvas.removeEventListener("pointermove", onMove);
+    canvas.removeEventListener("pointerleave", onLeave);
+    canvas.removeEventListener("pointerdown", onDown);
+  };
+}
 function rrect(g, x, y, w, h, r) {
   g.beginPath();
   g.moveTo(x + r, y);
@@ -157,6 +358,7 @@ function rrect(g, x, y, w, h, r) {
    Home page
    ============================================================ */
 function renderHome() {
+  document.title = "AGAME+ — A cozy little browser arcade";
   if (shell) { shell.destroy(); shell = null; }
   if (heroAnim) { heroAnim(); heroAnim = null; }
   app.innerHTML = "";
@@ -166,29 +368,30 @@ function renderHome() {
   page.className = "page";
 
   /* hero */
-  const featured = byId.get("tetris");
+  const featured = byId.get("memory") || byId.get("tetris");
   const totalPlays = GAMES.reduce((a, g) => a + g.plays, 0);
   const hero = document.createElement("section");
   hero.className = "hero";
   hero.innerHTML = `
     <div>
-      <span class="hero-kicker"><span class="dot"></span> ${GAMES.length} hand-built games · zero installs</span>
-      <h1>Games that just <span class="grad">work</span>.<br>No downloads. No ads in your face.</h1>
-      <p class="sub">Every game on agame⁺ is written from scratch for the browser — crisp canvas graphics, instant load, high scores saved right on your device. Pick one and press play.</p>
+      <span class="hero-kicker"><span class="dot"></span> ${GAMES.length} tiny worlds · open late</span>
+      <h1>Take a little <span class="grad">play break</span>.<br>Your cozy corner of the web.</h1>
+      <p class="sub">Pick a tiny world, settle in, and play for a minute — or an hour. Colorful canvas games, gentle sounds, and high scores saved right on your device.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#/play/${featured.id}">▶ Play ${featured.title}</a>
-        <a class="btn btn-ghost" href="#browse">Browse all games</a>
+        <a class="btn btn-ghost" href="#browse">Explore the shelf</a>
       </div>
       <div class="hero-stats">
-        <div class="hero-stat"><div class="n">${GAMES.length}</div><div class="l">Games</div></div>
-        <div class="hero-stat"><div class="n">${fmtPlays(totalPlays)}</div><div class="l">Plays & counting</div></div>
-        <div class="hero-stat"><div class="n">0</div><div class="l">Downloads needed</div></div>
-        <div class="hero-stat"><div class="n">60fps</div><div class="l">Canvas rendering</div></div>
+        <div class="hero-stat"><div class="n">${GAMES.length}</div><div class="l">Tiny worlds</div></div>
+        <div class="hero-stat"><div class="n">${fmtPlays(totalPlays)}</div><div class="l">Happy plays</div></div>
+        <div class="hero-stat"><div class="n">0</div><div class="l">Downloads</div></div>
+        <div class="hero-stat"><div class="n">60fps</div><div class="l">Canvas magic</div></div>
       </div>
     </div>
-    <div class="hero-art">
+    <div class="hero-art" aria-label="A colorful animated arcade garden. Tap or click to make a little sparkle.">
       <canvas id="hero-canvas"></canvas>
-      <span class="badge">LIVE DEMO — press play on any card</span>
+      <span class="badge">✦ COZY MODE · tap the scene</span>
+      <span class="hero-art-note"><span class="note-dot"></span> A soft place to land</span>
     </div>`;
   page.appendChild(hero);
   heroAnim = heroArt(hero.querySelector("#hero-canvas"));
@@ -221,7 +424,7 @@ function renderHome() {
   if (rec.length && !currentQuery) {
     const sec = document.createElement("section");
     sec.className = "section";
-    sec.innerHTML = `<div class="section-head"><h2>Jump back in</h2><span class="line"></span></div>`;
+    sec.innerHTML = `<div class="section-head"><h2>Welcome back</h2><span class="line"></span><span class="section-hint">your recent little worlds</span></div>`;
     sec.appendChild(gridEl(rec));
     page.appendChild(sec);
   }
