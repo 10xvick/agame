@@ -1,0 +1,13 @@
+{
+  "name": "agame",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A cozy browser arcade built with vanilla JavaScript and canvas",
+  "type": "module",
+  "scripts": {
+    "verify": "node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

@@ -43,11 +43,24 @@ index.html          — single page shell
 css/style.css       — design system (dark neon theme)
 js/common.js        — engine: storage, WebAudio sfx synth, game Shell, registry
 js/covers.js        — procedural canvas cover art for every game card
-js/main.js          — hash router, home page (hero, search, categories, grid)
+js/main.js          — hash router, home page (cozy shelf, search, categories, grid)
 js/games/*.js       — 16 self-registering game modules
+scripts/verify.mjs  — functional smoke verifier used before presenting a preview
+skills/verify-before-presenting/SKILL.md — repeatable pre-presentation checklist
 ```
 
 Each game registers `{ id, title, category, controls, mount(shell) }`. The `Shell` provides the HUD (score/best), start & game-over overlays, the rAF loop, canvas + dpr sizing, pause/resume (including auto-pause on tab blur), particles, and a touch control pad. Games stay framework-free and self-contained.
+
+## Verify before presenting
+
+Install the small test dependency and run the functional smoke verifier before presenting a UI change:
+
+```bash
+npm install
+npm run verify
+```
+
+The verifier parses every JavaScript file, mounts the home shelf in a DOM harness, checks the canvas cards and bottom navigation, exercises search and category filtering, opens the Snake route, and presses the primary play button. It is a functional check, not a pixel-level visual test; use a real browser pass at desktop and mobile sizes for final visual verification.
 
 ## Notes
 
